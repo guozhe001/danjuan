@@ -1,0 +1,8 @@
+/cookie.txt
+/venv/
+.idea/
+/response/
+response/plan_buy.json
+response/plan_swap.json
+response/plan_分红.json
+!/*.ipynb
