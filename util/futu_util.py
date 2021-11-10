@@ -1,63 +1,72 @@
 import datetime
-import math
+import time
 
 import futu as ft
 import pandas as pd
 
-from util import notify_util, num_util
+from util import notify_util
 
 api_svr_ip = '127.0.0.1'
 api_svr_port = 11111
 
-quote_ctx = ft.OpenQuoteContext(host=api_svr_ip, port=api_svr_port)
-
 notify_count = {}
 
 
+def invoke_quote_ctx(func_name, *args):
+    quote_ctx = ft.OpenQuoteContext(host=api_svr_ip, port=api_svr_port)
+    if hasattr(quote_ctx, func_name):
+        func = getattr(quote_ctx, func_name)
+        close_func = getattr(quote_ctx, "close")
+        result = func(*args)
+        close_func()
+        return result
+    else:
+        raise Exception(f"no func {func_name}")
+
+
 def get_stock_basicinfo(market, stock_type=ft.SecurityType.STOCK, code_list=None):
-    ret_code, ret_data = quote_ctx.get_stock_basicinfo(market, stock_type, code_list)
+    ret_code, ret_data = invoke_quote_ctx("get_stock_basicinfo", market, stock_type, code_list)
     return ret_data if ret_code == 0 else []
 
 
 def get_market_snapshot(stock_codes):
-    ret_code, ret_data = quote_ctx.get_market_snapshot(stock_codes)
+    ret_code, ret_data = invoke_quote_ctx("get_market_snapshot", stock_codes)
     return ret_data if ret_code == 0 else []
 
 
-#
-# def loop_get_mkt_snapshot(market: ft.Market, sub_type: ft.SecurityType):
-#     """
-#     验证接口：获取某个市场的全部快照数据 get_mkt_snapshot
-#     :param market: market type
-#     :return:
-#     """
-#     stock_codes = []
-#     # 枚举所有的股票类型，获取股票codes
-#     ret_code, ret_data = quote_ctx.get_stock_basicinfo(market, sub_type)
-#     if ret_code == 0:
-#         print("get_stock_basicinfo: market={}, sub_type={}, count={}".format(market, sub_type, len(ret_data)))
-#         for ix, row in ret_data.iterrows():
-#             print(row)
-#             stock_codes.append(row['code'])
-#
-#     if len(stock_codes) == 0:
-#         quote_ctx.close()
-#         print("Error market:'{}' can not get stock info".format(market))
-#         return
+def loop_get_mkt_snapshot(market: ft.Market, sub_type: ft.SecurityType):
+    """
+    验证接口：获取某个市场的全部快照数据 get_mkt_snapshot
+    :param market: market type
+    :return:
+    """
+    _quote_ctx = ft.OpenQuoteContext(host=api_svr_ip, port=api_svr_port)
+    stock_codes = []
+    # 枚举所有的股票类型，获取股票codes
+    ret_code, ret_data = _quote_ctx.get_stock_basicinfo(market, sub_type)
+    if ret_code == 0:
+        print("get_stock_basicinfo: market={}, sub_type={}, count={}".format(market, sub_type, len(ret_data)))
+        for ix, row in ret_data.iterrows():
+            print(row)
+            stock_codes.append(row['code'])
 
-# 按频率限制获取股票快照: 每3秒200支股票
-# for i in range(1, len(stock_codes), 200):
-#     print("from {}, total {}".format(i, len(stock_codes)))
-#     ret_code, ret_data = quote_ctx.get_market_snapshot(stock_codes[i:i + 200])
-#     if ret_code == 0:
-#         print(ret_data)
-#     time.sleep(3)
-#
-# quote_ctx.close()
+    if len(stock_codes) == 0:
+        _quote_ctx.close()
+        print("Error market:'{}' can not get stock info".format(market))
+        return
+
+    # 按频率限制获取股票快照: 每3秒200支股票
+    for i in range(1, len(stock_codes), 200):
+        print("from {}, total {}".format(i, len(stock_codes)))
+        ret_code, ret_data = _quote_ctx.get_market_snapshot(stock_codes[i:i + 200])
+        if ret_code == 0:
+            print(ret_data)
+        time.sleep(3)
+    _quote_ctx.close()
 
 
-if __name__ == '__main__':
-    basicinfo = get_stock_basicinfo(ft.Market.HK, ft.SecurityType.IDX, ["HK.800700"])
+def get_price(_code):
+    basicinfo = get_stock_basicinfo(ft.Market.HK, ft.SecurityType.IDX, [_code])
     print(type(basicinfo))
     print(basicinfo)
 
@@ -88,3 +97,8 @@ if __name__ == '__main__':
     #     # print(type(data))
     #     print(data["code"])
     #     print(row)
+
+
+if __name__ == '__main__':
+    get_price("HK.800700")
+    # loop_get_mkt_snapshot(ft.Market.HK, ft.SecurityType.IDX)
