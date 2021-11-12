@@ -11,7 +11,7 @@ def write_to_google_sheet(rows):
 
 def get_lasted_saved_order_id():
     # 记录父order_id的列
-    column_order_id = google_sheet_util.list_column("J")
+    column_order_id = google_sheet_util.list_column("J:J")
     # print(column_order_id)
     # print(type(column_order_id))
     # 最后一条order_id

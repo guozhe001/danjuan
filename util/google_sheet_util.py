@@ -20,7 +20,7 @@ def value_in_column(value, column, file_name=default_file_name, worksheet_name=d
 
 
 def list_column(column, file_name=default_file_name, worksheet_name=default_sheet_name):
-    list_of_lists = get_cells(f"{column}:{column}", file_name, worksheet_name)
+    list_of_lists = get_cells(column, file_name, worksheet_name)
     return [r[0] if r else "" for r in list_of_lists]
 
 
