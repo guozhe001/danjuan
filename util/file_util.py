@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 def delete_file(abs_file_path):
@@ -53,3 +54,8 @@ def get_last_line(file):
         while f.read(1) != b'\n':
             f.seek(-2, os.SEEK_CUR)
         return f.readline().decode()
+
+
+def list_all_sub_path(abs_path):
+    p = Path(abs_path)
+    return [x for x in p.iterdir() if x.is_dir()]
