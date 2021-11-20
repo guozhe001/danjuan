@@ -1,7 +1,16 @@
 # encoding=utf8
+import argparse
 import json
 
-from util import google_sheet_util, danjuan_util
+from util import google_sheet_util, danjuan_util, date_util
+from datetime import datetime
+
+
+def add_proxy(proxy_host="127.0.0.1", proxy_port=10808):
+    import socket
+    import socks
+    socks.set_default_proxy(socks.SOCKS5, proxy_host, proxy_port)
+    socket.socket = socks.socksocket
 
 
 def write_to_google_sheet(rows):
@@ -65,16 +74,18 @@ def main():
     data = get_success_and_not_save_data(resp_dict_list, lasted_saved_order_id)
     if data:
         write_to_google_sheet(danjuan_util.parse_trade(data, saved_order_id))
-    print("蛋卷基金的数据已经全部写入到指定的google表格中")
+    print(f"{datetime.now()}-蛋卷基金的数据已经全部写入到指定的google表格中")
+
+
+# 定义入参
+def define_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--proxy_port", help="代理端口", type=int, default=10808)
+    parser.add_argument("--proxy_host", help="代理host", default="127.0.0.1")
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
+    args = define_args()
+    add_proxy(proxy_host=args.proxy_host, proxy_port=args.proxy_port)
     main()
-
-# swap_order_id = "394203749278371840"
-#
-# amount, share, price, service_fee = danjuan_util.get_fund_swap_order_detail(swap_order_id)
-# print(amount, share, price, service_fee)
-#
-# r = get(first_page)
-# print(r.text)

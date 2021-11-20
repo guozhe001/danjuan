@@ -65,7 +65,7 @@ positive_and_negative = {DanjuanAction.swap_out: 1, DanjuanAction.swap_in: -1, D
 
 
 def get(url):
-    return http_util.get(url, headers)
+    return http_util.get_with_headers(url, headers)
 
 
 def get_fund_buy_order_detail(order_id):
