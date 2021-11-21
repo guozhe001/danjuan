@@ -8,3 +8,5 @@ response/plan_分红.json
 *.ipynb
 *.pyc
 *.log
+/test/util/fund.csv
+/test/util/fund_info.csv
