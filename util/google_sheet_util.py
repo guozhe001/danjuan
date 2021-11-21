@@ -51,6 +51,14 @@ class FundHeaderName:
     tx_price = "成交单价（元）"
     tx_amount = "交易份额"
     tx_fees = "手续费"
+    danjuan_order_id = "蛋卷订单ID"
+    danjuan_parent_order_id = "蛋卷父订单ID"
+
+
+fund_detail_header = [FundHeaderName.action_date, FundHeaderName.action_type, FundHeaderName.fund_code,
+                      FundHeaderName.fund_name, FundHeaderName.tx_value, FundHeaderName.tx_price,
+                      FundHeaderName.tx_amount, FundHeaderName.tx_fees, FundHeaderName.danjuan_order_id,
+                      FundHeaderName.danjuan_parent_order_id]
 
 
 def append_row(row, file_name=default_file_name, worksheet_name=default_sheet_name):

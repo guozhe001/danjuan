@@ -5,19 +5,17 @@ from pathlib import PurePosixPath
 from unittest import TestCase
 
 import pandas as pd
-import numpy as np
 import socks
 
+from constant import constant
 from util import google_sheet_util, financial, file_util, num_util, date_util
 
 socks.set_default_proxy(socks.HTTP, "127.0.0.1", 8001)
 socket.socket = socks.socksocket
 
-fund_info_file_name = "fund_info.csv"
 
-
-def get_fund_file_name(file_name="fund.csv"):
-    return PurePosixPath(os.path.abspath(__file__)).parent.joinpath(file_name)
+def get_fund_file_name(file_name=constant.FundFileName.fund_file_name):
+    return constant.project_path.joinpath("data", file_name)
 
 
 def delete_old_file_and_save_new(file_name, df):
@@ -27,6 +25,10 @@ def delete_old_file_and_save_new(file_name, df):
 
 
 class Test(TestCase):
+
+    def test_get_fund_file_name(self):
+        print(get_fund_file_name())
+
     def test_print_xirr(self):
         # 测试
         data = [(datetime.date(2006, 1, 24), -39967), (datetime.date(2008, 2, 6), -19866),
@@ -64,10 +66,10 @@ class Test(TestCase):
                                               worksheet_name=google_sheet_util.fund_info_sheet_name)
 
         self.assertIsNotNone(columns)
-        delete_old_file_and_save_new(get_fund_file_name(fund_info_file_name), pd.DataFrame(columns))
+        delete_old_file_and_save_new(get_fund_file_name(constant.FundFileName.fund_info_file_name),
+                                     pd.DataFrame(columns))
 
     def test_xirr(self):
-
         df = pd.read_csv(get_fund_file_name(), dtype=object, parse_dates=True,
                          infer_datetime_format=date_util.DATE_FORMAT)
         print(df.columns)
@@ -81,7 +83,7 @@ class Test(TestCase):
             code_data.append(row)
             df_group_by.setdefault(row[2], code_data)
 
-        fund_info_df = pd.read_csv(get_fund_file_name(fund_info_file_name), header=1, dtype=str)
+        fund_info_df = pd.read_csv(get_fund_file_name(constant.FundFileName.fund_info_file_name), header=1, dtype=str)
         print(fund_info_df.columns)
         print(fund_info_df.index)
 
@@ -108,5 +110,4 @@ class Test(TestCase):
         cash_flow = list(zip(dt_list, [num_util.round_floor(float(amount), 2) for amount in
                                        df[google_sheet_util.FundHeaderName.tx_value][1:]]))
         cash_flow.append((datetime.now(), total_value))
-        print(cash_flow)
         print(financial.xirr(list(cash_flow)))
