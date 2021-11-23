@@ -76,6 +76,5 @@ def xirr(cashflows, guess=0.1):
     * For users that do not have the scipy module installed, there is an alternate version (commented out) that uses the secant_method function defined in the module rather than the scipy.optimize module's numerical solver. Both use the same method of calculation so there should be no difference in performance, but the secant_method function does not fail gracefully in cases where there is no solution, so the scipy.optimize.newton version is preferred.
 
     """
-
     # return secant_method(0.0001,lambda r: xnpv(r,cashflows),guess)
     return optimize.newton(lambda r: xnpv(r, cashflows), guess)

@@ -7,6 +7,7 @@ import pandas as pd
 
 from constant import constant
 from util import google_sheet_util, danjuan_util, date_util, file_util, num_util, financial
+from util.google_sheet_util import FundHeaderName, DateTimeRenderOption, ValueRenderOption
 
 # 定义入参
 parser = argparse.ArgumentParser()
@@ -60,16 +61,12 @@ def get_success_and_not_save_data(result, _lasted_saved_order_id):
             items.append(item)
 
     items = sorted(items, key=lambda item: item["created_at"])
-    # lambda i: i['age'])
-    # for item in items:
-    #     print(item)
     lasted_saved_index = 0
     first_not_success_index = len(items)
     for i in range(len(items)):
         if _lasted_saved_order_id == items[i].get("order_id"):
             lasted_saved_index = i
         if items[i].get("status") == "new":
-            # print(items[i])
             first_not_success_index = i
             break
     return items[lasted_saved_index + 1:first_not_success_index]
@@ -103,61 +100,65 @@ def get_fund_file_name(file_name=constant.FundFileName.fund_file_name):
 def get_all_newest_fund_data():
     # 投资记录
     columns = google_sheet_util.get_cells("A:J",
-                                          value_render_option=google_sheet_util.ValueRenderOption.UNFORMATTED_VALUE,
-                                          date_time_render_option=google_sheet_util.DateTimeRenderOption.FORMATTED_STRING)
+                                          value_render_option=ValueRenderOption.UNFORMATTED_VALUE,
+                                          date_time_render_option=DateTimeRenderOption.FORMATTED_STRING)
     df = pd.DataFrame(columns)
-    df = df.fillna(value={google_sheet_util.FundHeaderName.tx_value: 0,
-                          google_sheet_util.FundHeaderName.tx_price: 0,
-                          google_sheet_util.FundHeaderName.tx_amount: 0,
-                          google_sheet_util.FundHeaderName.tx_fees: 0})
+    df = df.fillna(value={FundHeaderName.tx_value: 0,
+                          FundHeaderName.tx_price: 0,
+                          FundHeaderName.tx_amount: 0,
+                          FundHeaderName.tx_fees: 0})
     get_newest_fund_data(get_fund_file_name(), df)
     # 基金信息，包括当前价格
     columns = google_sheet_util.get_cells("A:E",
-                                          value_render_option=google_sheet_util.ValueRenderOption.UNFORMATTED_VALUE,
-                                          date_time_render_option=google_sheet_util.DateTimeRenderOption.FORMATTED_STRING,
+                                          value_render_option=ValueRenderOption.UNFORMATTED_VALUE,
+                                          date_time_render_option=DateTimeRenderOption.FORMATTED_STRING,
                                           worksheet_name=google_sheet_util.fund_info_sheet_name)
     get_newest_fund_data(get_fund_file_name(constant.FundFileName.fund_info_file_name), pd.DataFrame(columns))
 
 
+def do_analysis_single_fund(fund_code, fund_code_price, rows, fund_name):
+    if rows:
+        fund_df = pd.DataFrame(rows)
+        dt_list = [date_util.str_to_datetime(dt_str, date_util.DATE_FORMAT) if isinstance(dt_str, str) else dt_str
+                   for dt_str in fund_df[0]]
+        fund_code_value_list = [num_util.round_floor(float(amount), 2) for amount in fund_df[4]]
+        cash_flow = list(zip(dt_list, fund_code_value_list))
+        amount = num_util.round_floor(
+            max(sum([num_util.round_floor(float(amount), 2) for amount in fund_df[6]]), 0), 4) if rows else 0
+        fund_code_value = num_util.round_floor(fund_code_price * amount, 2)
+        cash_flow.append((datetime.now(), fund_code_value))
+        if fund_code_value + sum(fund_code_value_list) >= 0:
+            print(f"基金代码={fund_code}, 基金名称={fund_name}, 当前持有份额={amount}, 每份价格={fund_code_price}, "
+                  f"当前总价值={fund_code_value}, xirr复合年化收益率={num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2)}%")
+        else:
+            print(f"基金代码={fund_code}, 基金名称={fund_name}, 当前持有份额={amount}, 每份价格={fund_code_price}, "
+                  f"当前总价值={fund_code_value}, 亏损={round(fund_code_value + sum(fund_code_value_list), 2)}")
+        return fund_code_value
+    return 0
+
+
 def do_analysis():
-    df = pd.read_csv(get_fund_file_name(), dtype=object, parse_dates=True)
-    df = df.fillna(value={google_sheet_util.FundHeaderName.tx_value: 0,
-                          google_sheet_util.FundHeaderName.tx_price: 0,
-                          google_sheet_util.FundHeaderName.tx_amount: 0,
-                          google_sheet_util.FundHeaderName.tx_fees: 0})
-    df_group_by = {}
-    for row in df.values:
-        code_data = df_group_by.get(row[2], [])
-        code_data.append(row)
-        df_group_by.setdefault(row[2], code_data)
+    df = pd.read_csv(get_fund_file_name(), dtype=object)
+    df = df.fillna({FundHeaderName.tx_value: 0, FundHeaderName.tx_price: 0, FundHeaderName.tx_amount: 0,
+                    FundHeaderName.tx_fees: 0})
 
     fund_info_df = pd.read_csv(get_fund_file_name(constant.FundFileName.fund_info_file_name), header=1, dtype=str)
 
-    total_value = 0
-    for row in fund_info_df.values:
-        fund_code = row[0]
-        fund_code_price = float(row[4])
-        rows = df_group_by.get(fund_code, [])
-        if rows:
-            values = pd.DataFrame(rows)[:][6].astype(float)
-            amount = num_util.round_floor(max(sum(values), 0), 4) if rows else 0
-            fund_code_value = num_util.round_floor(fund_code_price * amount, 2)
-            print(f"fund_code={fund_code}, fund_name={row[1]}, amount={amount}, price={fund_code_price}, "
-                  f"fund_value={fund_code_value}")
-            total_value += fund_code_value
-    total_value = num_util.round_floor(total_value, 2)
-    print(total_value)
-
+    total_value = num_util.round_floor(sum([do_analysis_single_fund(fund_info[0], float(fund_info[4]),
+                                                                    [fund_detail for fund_detail in df.values if
+                                                                     fund_detail[2] == fund_info[0]],
+                                                                    fund_info[1]) for fund_info in
+                                            fund_info_df.values]), 2)
     dt_list = [date_util.str_to_datetime(dt_str, date_util.DATE_FORMAT) if isinstance(dt_str, str) else dt_str for
-               dt_str in df[google_sheet_util.FundHeaderName.action_date][1:]]
+               dt_str in df[FundHeaderName.action_date][1:]]
     cash_flow = list(zip(dt_list, [num_util.round_floor(float(amount), 2) for amount in
-                                   df[google_sheet_util.FundHeaderName.tx_value][1:]]))
+                                   df[FundHeaderName.tx_value][1:]]))
     cash_flow.append((datetime.now(), total_value))
 
-    bid_value = round(sum([v for v in df[google_sheet_util.FundHeaderName.tx_value][1:].astype(float) if v < 0]), 2)
-    redeem_value = round(sum([v for v in df[google_sheet_util.FundHeaderName.tx_value][1:].astype(float) if v > 0]), 2)
-    print(f"start_time={df[google_sheet_util.FundHeaderName.action_date][0]}, end_time={datetime.now().date()}, "
-          f"总申购金额={bid_value}, 总赎回金额={redeem_value}, 当前总价值={total_value}, "
+    bid_value = round(sum([v for v in df[FundHeaderName.tx_value][1:].astype(float) if v < 0]), 2)
+    redeem_value = round(sum([v for v in df[FundHeaderName.tx_value][1:].astype(float) if v > 0]), 2)
+    print(f"从【{df[FundHeaderName.action_date][0]}】截止到【{datetime.now().date()}】, "
+          f"总申购金额={bid_value}, 总赎回+分红金额={redeem_value}, 当前持有基金份额总价值={total_value}, "
           f"总盈利={round(total_value + redeem_value + bid_value, 2)}, "
           f"xirr复合年化收益率={num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2)}%")
 
