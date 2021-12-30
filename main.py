@@ -11,10 +11,10 @@ from util.google_sheet_util import FundHeaderName, DateTimeRenderOption, ValueRe
 
 # 定义入参
 parser = argparse.ArgumentParser()
-parser.add_argument("--proxy_port", help="代理端口", type=int, default=10808)
+parser.add_argument("--proxy_port", help="代理端口", type=int, default=1081)
 parser.add_argument("--proxy_host", help="代理host", default="127.0.0.1")
 parser.add_argument("--sync_danjuan", help="是否同步蛋卷基金到google表格", type=bool, default=True)
-parser.add_argument("--analysis", help="是否分析基金投资数据", type=bool, default=False)
+parser.add_argument("--analysis", help="是否分析基金投资数据", type=bool, default=True)
 
 
 def add_proxy(proxy_host, proxy_port):
@@ -121,18 +121,19 @@ def do_analysis_single_fund(fund_code, fund_code_price, rows, fund_name):
         fund_df = pd.DataFrame(rows)
         dt_list = [date_util.str_to_datetime(dt_str, date_util.DATE_FORMAT) if isinstance(dt_str, str) else dt_str
                    for dt_str in fund_df[0]]
-        fund_code_value_list = [num_util.round_floor(float(amount), 2) for amount in fund_df[4]]
+        fund_code_value_list = [num_util.round_floor(float(amount), 2) for amount in fund_df[4]]  # 减去分红和卖出之后剩余的投资金额
+        total_investment_list = [amount for amount in fund_code_value_list if amount < 0]  # 实际投资的金额
+        profit_list = [amount for amount in fund_code_value_list if amount > 0]  # 获利金额，包括分红获利和卖出获利
         cash_flow = list(zip(dt_list, fund_code_value_list))
-        amount = num_util.round_floor(
+        fund_total_shares = num_util.round_floor(
             max(sum([num_util.round_floor(float(amount), 2) for amount in fund_df[6]]), 0), 4) if rows else 0
-        fund_code_value = num_util.round_floor(fund_code_price * amount, 2)
+        fund_code_value = num_util.round_floor(fund_code_price * fund_total_shares, 2)  # 当前持有份数的总价值
         cash_flow.append((datetime.now(), fund_code_value))
-        if fund_code_value + sum(fund_code_value_list) >= 0:
-            print(f"基金代码={fund_code}, 基金名称={fund_name}, 当前持有份额={amount}, 每份价格={fund_code_price}, "
-                  f"当前总价值={fund_code_value}, xirr复合年化收益率={num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2)}%")
-        else:
-            print(f"基金代码={fund_code}, 基金名称={fund_name}, 当前持有份额={amount}, 每份价格={fund_code_price}, "
-                  f"当前总价值={fund_code_value}, 亏损={round(fund_code_value + sum(fund_code_value_list), 2)}")
+        fund_investment_amount = sum(total_investment_list)
+        total_profit_amount = round(sum(profit_list), 2)
+        print(f"{fund_code},{fund_name},{fund_investment_amount},{fund_total_shares},{fund_code_price},"
+              f"{fund_code_value},{total_profit_amount},{round(fund_code_value + total_profit_amount + fund_investment_amount, 2)},"
+              f"{num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2) if fund_code_value + total_profit_amount + fund_investment_amount > 0 else -round((fund_code_value + total_profit_amount + fund_investment_amount) / fund_investment_amount * 100, 2)}%")
         return fund_code_value
     return 0
 
@@ -141,9 +142,8 @@ def do_analysis():
     df = pd.read_csv(get_fund_file_name(), dtype=object)
     df = df.fillna({FundHeaderName.tx_value: 0, FundHeaderName.tx_price: 0, FundHeaderName.tx_amount: 0,
                     FundHeaderName.tx_fees: 0})
-
     fund_info_df = pd.read_csv(get_fund_file_name(constant.FundFileName.fund_info_file_name), header=1, dtype=str)
-
+    print(f"基金代码,基金名称,总投资金额,当前持有份额,当前每份价格,当前总价值,已获利,总（盈利/亏损）,xirr复合年化收益率")
     total_value = num_util.round_floor(sum([do_analysis_single_fund(fund_info[0], float(fund_info[4]),
                                                                     [fund_detail for fund_detail in df.values if
                                                                      fund_detail[2] == fund_info[0]],
@@ -166,15 +166,19 @@ def do_analysis():
 def analysis_fund():
     """分析基金投资的数据"""
     # 1、下载基金投资数据
+    # print("start get_all_newest_fund_data")
     # get_all_newest_fund_data()
     # 2、计算每个基金以及汇总的收益：总投资额度、止盈金额、目前市值、当前浮盈/浮亏（金额和百分比）、xirr年化收益率
+    print("start do_analysis")
     do_analysis()
 
 
 def main():
     args = parser.parse_args()
+    print(args)
     add_proxy(args.proxy_host, args.proxy_port)
     # if args.sync_danjuan:
+    #     print("start write_danjuan_to_google_sheet")
     #     write_danjuan_to_google_sheet()
     if args.analysis:
         analysis_fund()
