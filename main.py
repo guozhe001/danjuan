@@ -44,7 +44,8 @@ def get_all(_lasted_saved_order_id):
     result = []
     while i > 0:
         resp = danjuan_util.get(danjuan_util.list_orders_url_template.format(i, danjuan_util.page_size))
-        resp_dict = json.loads(resp.text)
+        resp_dict = resp.json()
+        print(resp_dict)
         # print(resp_dict)
         result.append(resp_dict)
         order_ids = danjuan_util.parse_trade_all(resp_dict)
@@ -74,9 +75,8 @@ def get_success_and_not_save_data(result, _lasted_saved_order_id):
 
 def write_danjuan_to_google_sheet():
     saved_order_id = get_lasted_saved_order_id()
-    # print(saved_order_id)
     lasted_saved_order_id = saved_order_id[len(saved_order_id) - 1]
-    # print(f"lasted_saved_order_id={lasted_saved_order_id}")
+    print(f"lasted_saved_order_id={lasted_saved_order_id}")
     resp_dict_list = get_all(lasted_saved_order_id)
     data = get_success_and_not_save_data(resp_dict_list, lasted_saved_order_id)
     now_str = datetime.now().strftime(date_util.date_format)
@@ -177,11 +177,11 @@ def main():
     args = parser.parse_args()
     print(args)
     add_proxy(args.proxy_host, args.proxy_port)
-    # if args.sync_danjuan:
-    #     print("start write_danjuan_to_google_sheet")
-    #     write_danjuan_to_google_sheet()
-    if args.analysis:
-        analysis_fund()
+    if args.sync_danjuan:
+        print("start write_danjuan_to_google_sheet")
+        write_danjuan_to_google_sheet()
+    # if args.analysis:
+    #     analysis_fund()
 
 
 if __name__ == "__main__":

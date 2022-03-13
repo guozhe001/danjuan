@@ -109,7 +109,7 @@ def parse_fund(item):
 def get_row(order_date, action_desc, code, name, amount, price, share, service_fee, order_id, parent_order_id=None):
     # one_day_second = 24 * 60 * 60
     # order_date_timestamp = math.floor(int(order_date) / (1000 * one_day_second)) * one_day_second
-    row = [date_util.format_unix_datetime(date_util.DAY_FORMAT, order_date), action_desc, code, name, float(amount),
+    row = [date_util.format_unix_datetime(date_util.DATE_FORMAT, order_date), action_desc, code, name, float(amount),
            float(price), float(share), float(service_fee), order_id,
            order_id if parent_order_id is None else parent_order_id]
     print(row)
@@ -169,9 +169,12 @@ def parse_trade(items, saved_order_id):
                 if DanjuanAction.swap == action or DanjuanAction.dividend == action or DanjuanAction.buy == action:
                     rows += parse_swap_plan(item)
                 else:
-                    raise Exception(f"trade_type={trade_type}, 不支持的交易类型{json.dumps(item)}")
+                    print(f"trade_type={trade_type}, 不支持的交易类型{json.dumps(item)}")
             elif trade_type == DanjuanType.fund:
-                rows.append(parse_fund(item))
+                try:
+                    rows.append(parse_fund(item))
+                except Exception as e:
+                    print(f"trade_type={trade_type}, 不支持的交易类型{json.dumps(item)}", e)
             else:
                 raise Exception(f"不支持的交易类型{json.dumps(item)}")
     return rows
