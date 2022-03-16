@@ -11,7 +11,7 @@ from util.google_sheet_util import FundHeaderName, DateTimeRenderOption, ValueRe
 
 # 定义入参
 parser = argparse.ArgumentParser()
-parser.add_argument("--proxy_port", help="代理端口", type=int, default=1081)
+parser.add_argument("--proxy_port", help="代理端口", type=int, default=10808)
 parser.add_argument("--proxy_host", help="代理host", default="127.0.0.1")
 parser.add_argument("--sync_danjuan", help="是否同步蛋卷基金到google表格", type=bool, default=True)
 parser.add_argument("--analysis", help="是否分析基金投资数据", type=bool, default=True)
