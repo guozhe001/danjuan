@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 
 from constant import constant
-from util import google_sheet_util, danjuan_util, date_util, file_util, num_util, financial
+from util import google_sheet_util, danjuan_util, date_util, file_util, num_util, financial, notify_util
 from util.google_sheet_util import FundHeaderName, DateTimeRenderOption, ValueRenderOption
 
 # 定义入参
@@ -157,17 +157,19 @@ def do_analysis():
 
     bid_value = round(sum([v for v in df[FundHeaderName.tx_value][1:].astype(float) if v < 0]), 2)
     redeem_value = round(sum([v for v in df[FundHeaderName.tx_value][1:].astype(float) if v > 0]), 2)
-    print(f"从【{df[FundHeaderName.action_date][0]}】截止到【{datetime.now().date()}】, "
-          f"总申购金额={bid_value}, 总赎回+分红金额={redeem_value}, 当前持有基金份额总价值={total_value}, "
-          f"总盈利={round(total_value + redeem_value + bid_value, 2)}, "
-          f"xirr复合年化收益率={num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2)}%")
+    msg = f"从【{df[FundHeaderName.action_date][0]}】截止到【{datetime.now().date()}】, "
+    f"总申购金额={bid_value}, 总赎回+分红金额={redeem_value}, 当前持有基金份额总价值={total_value}, "
+    f"总盈利={round(total_value + redeem_value + bid_value, 2)}, "
+    f"xirr复合年化收益率={num_util.round_floor(financial.xirr(list(cash_flow)) * 100, 2)}%"
+    print(msg)
+    notify_util.notify_with_platform(msg, "蛋卷基金")
 
 
 def analysis_fund():
     """分析基金投资的数据"""
     # 1、下载基金投资数据
-    # print("start get_all_newest_fund_data")
-    # get_all_newest_fund_data()
+    print("start get_all_newest_fund_data")
+    get_all_newest_fund_data()
     # 2、计算每个基金以及汇总的收益：总投资额度、止盈金额、目前市值、当前浮盈/浮亏（金额和百分比）、xirr年化收益率
     print("start do_analysis")
     do_analysis()
@@ -180,8 +182,8 @@ def main():
     if args.sync_danjuan:
         print("start write_danjuan_to_google_sheet")
         write_danjuan_to_google_sheet()
-    # if args.analysis:
-    #     analysis_fund()
+    if args.analysis:
+        analysis_fund()
 
 
 if __name__ == "__main__":
